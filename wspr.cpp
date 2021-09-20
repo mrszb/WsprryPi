@@ -45,6 +45,8 @@
 #include <pthread.h>
 #include <sys/timex.h>
 
+#include <wiringPi.h>
+
 #ifdef __cplusplus
 extern "C" {
 #include "mailbox.h"
@@ -150,6 +152,9 @@ extern "C" {
 #endif
 #endif
 #endif
+
+#define PERI_BASE_PHYS 0x3f000000
+#define MEM_FLAG 0x04
 
 #define PAGE_SIZE (4*1024)
 #define BLOCK_SIZE (4*1024)
@@ -1122,6 +1127,21 @@ void setup_peri_base_virt(
 }
 
 int main(const int argc, char * const argv[]) {
+
+  //radwav.com additions----------
+  int keyPowerAmpPin = 5; //GPIO23
+  int txEnaPin = 4;       //GPIO24
+
+  if(wiringPiSetup() == -1)
+  {
+    printf("\n[ERROR] - WiringPi setup failed.  Exiting.\n");
+    return 1;
+  }
+
+  pinMode(keyPowerAmpPin, OUTPUT);
+  pinMode(txEnaPin, OUTPUT);
+
+
   //catch all signals (like ctrl+c, ctrl+z, ...) to ensure DMA is disabled
   for (int i = 0; i < 64; i++) {
     struct sigaction sa;
@@ -1198,6 +1218,9 @@ int main(const int argc, char * const argv[]) {
     temp << std::setprecision(6) << std::fixed << "Transmitting test tone on frequency " << test_tone/1.0e6 << " MHz" << std::endl;
     std::cout << temp.str();
     std::cout << "Press CTRL-C to exit!" << std::endl;
+
+    digitalWrite(keyPowerAmpPin, 1);
+    digitalWrite(txEnaPin, 1);
 
     txon();
     int bufPtr=0;
@@ -1305,6 +1328,9 @@ int main(const int argc, char * const argv[]) {
         struct timeval sym_start;
         struct timeval diff;
         int bufPtr=0;
+        digitalWrite(keyPowerAmpPin, 1);
+        digitalWrite(txEnaPin, 1);
+
         txon();
         for (int i = 0; i < 162; i++) {
           gettimeofday(&sym_start,NULL);
@@ -1323,6 +1349,10 @@ int main(const int argc, char * const argv[]) {
 
         // Turn transmitter off
         txoff();
+
+        //unkey RadWAV transmitter
+        digitalWrite(keyPowerAmpPin, 0);
+        digitalWrite(txEnaPin, 0);
 
         // End timestamp
         gettimeofday(&tvEnd, NULL);
